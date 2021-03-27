@@ -5,16 +5,14 @@ using namespace std;
 Polynomial::Polynomial()=default;
 
 void Polynomial::Check() {
-    for (unsigned i = num - 1; i >= 0; i--) {
+    for (unsigned i = num() - 1; i >= 0; i--) {
         if (coefficients[i] != 0)
             break;
         coefficients.pop_back();
     }
-    num = coefficients.size();
 }
 
 Polynomial::Polynomial(const vector<double>& x){
-    num = x.size();
     for (double i : x){
         coefficients.push_back(i);
     }
@@ -27,124 +25,131 @@ Polynomial::~Polynomial() {
 }
 
 Polynomial::Polynomial(const Polynomial &other):
-        num(other.num), coefficients(other.coefficients){
+        coefficients(other.coefficients){
 }
 
 Polynomial &Polynomial::operator=(const Polynomial &other){
     coefficients = other.coefficients;
-    num = other.num;
     return *this;
 }
 
 bool Polynomial::operator==(const Polynomial &other) const {
-    if (num != other.num || coefficients != other.coefficients)
+    if (num() != other.num() || coefficients != other.coefficients)
         return false;
     return true;
 }
 
 bool Polynomial::operator!=(const Polynomial &other) const {
-    if (num == other.num || coefficients == other.coefficients)
+    if (num() == other.num() || coefficients == other.coefficients)
         return true;
     return false;
 }
 
-Polynomial Polynomial::operator+() {
+Polynomial Polynomial::operator+() const {
     return *this;
 }
 
-Polynomial Polynomial::operator-() {
-    *this *= -1;
-    return *this;
+Polynomial Polynomial::operator-() const {
+    return *this * -1;
 }
 
 Polynomial Polynomial::operator+(const Polynomial &other) const {
-    int num_answer = (num > other.num) ? other.num : num;
-    vector<double> answer(num_answer);
-    for (int i = 0; i < num_answer; i++){
-        answer[i] = ((num > i) ? coefficients[i] : 0) + ((other.num > i) ? other.coefficients[i] : 0);
-    }
-    answer = Check_(answer);
-    return Polynomial(answer);
+    Polynomial Copy = *this;
+    Copy += other;
+    return Copy;
 }
 
-Polynomial Polynomial::operator-(const Polynomial &other) {
-    *this = -((-*this) + other);
-    return *this;
+Polynomial Polynomial::operator-(const Polynomial &other) const {
+    Polynomial Copy = *this;
+    Copy -= other;
+    return Copy;
 }
 
 Polynomial &Polynomial::operator+=(const Polynomial &other) {
-    *this = *this + other;
+    for (int i = 0; i < num(); i++){
+        coefficients[i] += ((other.num() > i) ? other.coefficients[i] : 0);
+    }
+    for (int i = num(); i < other.num(); i++){
+        coefficients.push_back(other.coefficients[i]);
+    }
+    Check();
     return *this;
 }
 
 Polynomial &Polynomial::operator-=(const Polynomial &other) {
-    *this = *this - other;
+    for (int i = 0; i < num(); i++){
+        coefficients[i] -= ((other.num() > i) ? other.coefficients[i] : 0);
+    }
+    for (int i = num(); i < other.num(); i++){
+        coefficients.push_back(-other.coefficients[i]);
+    }
+    Check();
     return *this;
 }
 
-Polynomial Polynomial::operator*(double k) {
-    vector<double> k1{k};
-    *this = *this * k1;
-    return *this;
+Polynomial Polynomial::operator*(double k) const {
+    Polynomial k1({k});
+    return *this * k1;
 }
 
 Polynomial Polynomial::operator*(const Polynomial &other) const {
-    int n = num + other.num - 1;
-    vector<double> answer(n);
-    for (int i = 0; i < num; i++){
-        for (int j = 0; j < other.num; j++){
-            answer[i + j] += coefficients[i] * other.coefficients[j];
-        }
-    }
-    return Polynomial(answer);
+    Polynomial Copy = *this;
+    Copy *= other;
+    return Copy;
 }
 
-Polynomial Polynomial::operator/(double k) {
-    *this = *this * (1/k);
-    return *this;
+Polynomial Polynomial::operator/(double k) const {
+    return *this * (1/k);
 }
 
-Polynomial &Polynomial::operator*=(double k) {
-    *this = *this * k;
-    return *this;
+Polynomial Polynomial::operator*=(double k) const {
+    return *this * (k);
 }
 
 Polynomial &Polynomial::operator*=(const Polynomial &other) {
-    *this = *this * other;
+    int n = num() + other.num() - 1;
+    vector<double> answer(n);
+    for (int i = 0; i < num(); i++){
+        for (int j = 0; j < other.num(); j++) {
+            answer[i+j] += coefficients[i] * other.coefficients[j];
+        }
+    }
+    *this = Polynomial(answer);
     return *this;
 }
 
-Polynomial &Polynomial::operator/=(double k) {
-    *this = *this / k;
-    return *this;
+Polynomial Polynomial::operator/=(double k) const {
+    return *this / k;
 }
 
 ostream &operator<<(ostream& out, const Polynomial &other) {
-    out << other.num - 1 << endl;
-    for (int i = other.num - 1; i >= 0; i--) {
+    out << other.num() - 1 << endl;
+    for (int i = other.num() - 1; i >= 0; i--) {
         if (other.coefficients[i] == 0){
             out << "";
         }
         else{
-            if (abs(other.coefficients[i]) == 1 && i != 0){
-                out << ((other.coefficients[i] == -1) ? "-" : "");
-            }
-            else{
-                if (i == other.num - 1 && other.coefficients[i] < 0)
-                    out << "-";
+            out << ((other.coefficients[i] < 0) ? "- " : (i != other.num() - 1)? "+ " : "");
+            if (abs(other.coefficients[i]) != 1 || i == 0) {
                 out << abs(other.coefficients[i]);
             }
-            out << ((i == 0) ? "" : ((i == 1) ? "x" : "x^"));
-            if (i != 0 && i != 1)
-                out << i;
+            if (i == 0) {
+                continue;
+            }
+            out << "x" << ((i != 1) ? "^" : " ");
+            if (i != 1)
+                out << abs(i) << " ";
         }
-        out << ((i == 0 || other.coefficients[i] == 0) ? "" : ((other.coefficients[i - 1] < 0) ? " - " : " + "));
     }
     out << endl;
+    for (auto i : other.coefficients){
+        cout << i << " ";
+    }
     return out;
 }
 
 istream &operator>>(istream& in, Polynomial &other) {
+    other.coefficients.clear();
     string str_in;
     string str1;
     vector<string> str_monomials;
@@ -201,7 +206,6 @@ istream &operator>>(istream& in, Polynomial &other) {
         if (power >= other.coefficients.size())
             other.coefficients.resize(power + 1, 0);
         other.coefficients[power] += coef * sign;
-        other.num = other.coefficients.size();
     }
     other.Check();
 
@@ -216,11 +220,6 @@ double &Polynomial::operator[](int i) {
     return coefficients[i];
 }
 
-vector<double> Check_(vector<double> x){
-    for (unsigned i = x.size() - 1; i >= 0; i--) {
-        if (x[i] != 0)
-            break;
-        x.pop_back();
-    }
-    return x;
+int Polynomial::num() const{
+    return coefficients.size();
 }
