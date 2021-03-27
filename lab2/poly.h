@@ -9,8 +9,7 @@ using namespace std;
 
 class Polynomial{
 protected:
-    mutable vector<double> coefficients;
-    mutable int num = 0;
+    vector<double> coefficients;
 
     void Check();
 public:
@@ -28,39 +27,42 @@ public:
 
     bool operator!=(const Polynomial &)const;
 
-    Polynomial operator+();
+    Polynomial operator+() const;
 
-    Polynomial operator-();
+    Polynomial operator-() const;
 
     Polynomial operator+(const Polynomial &) const;
 
-    Polynomial operator-(const Polynomial &);
+    Polynomial operator-(const Polynomial &) const;
 
     Polynomial &operator+=(const Polynomial &);
 
     Polynomial &operator-=(const Polynomial &);
 
-    Polynomial operator*(double);
+    Polynomial operator*(double) const;
 
     Polynomial operator*(const Polynomial &) const;
 
-    Polynomial operator/(double);
+    Polynomial operator/(double) const;
 
-    Polynomial &operator*=(double);
+    Polynomial operator*=(double) const;
 
     Polynomial &operator*=(const Polynomial &);
 
-    Polynomial &operator/=(double);
+    Polynomial operator/=(double) const;
 
     friend ostream &operator<<(ostream &out, const Polynomial &other);
+
+    friend istream &operator>>(istream &in, Polynomial &other);
 
     friend istream &operator>>(istream &in, Polynomial &other);
 
     double operator[](int) const;
 
     double &operator[](int);
+
+    [[nodiscard]] int num() const;
 };
 
-vector<double> Check_(vector<double>);
-
 #endif //LAB2_POLY_H
+
