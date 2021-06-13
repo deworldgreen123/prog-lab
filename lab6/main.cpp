@@ -66,7 +66,10 @@ public:
         color.resize(6, COLOR::ZERO); // верх, низ, впереди, сзади, лево, право
     }
 
-    SmallCube &operator=(const SmallCube& other) = default;
+    SmallCube &operator=(const SmallCube& other){
+        color = other.color;
+        return *this;
+    };
 
     void rotate(AXIS axis, unsigned int sign){
         for (unsigned int i = 0; i < sign; i++)
@@ -143,8 +146,19 @@ class Cube{
 private:
     SmallCube cube[3][3][3];
     std::vector<COLOR> color;
+    std::string com;
 public:
-    Cube &operator=(const Cube& other) = default;
+    Cube &operator=(const Cube& other){
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 3; j++){
+                for (int k = 0; k < 3; k++){
+                    cube[i][j][k] = other.cube[i][j][k];
+                }
+            }
+        }
+        color = other.color;
+        return *this;
+    }
 
     explicit Cube(std::vector<COLOR> color_new = {  COLOR::WHITE,   // Top
                                                     COLOR::YELLOW,    // Bottom
@@ -216,6 +230,7 @@ public:
         int i, j, k;
         switch (axis){
             case X: {
+                com += "X" + std::to_string(sign) + " ";
                 rotateSign(FRONT, sign);
                 rotateSign(BACK, sign);
 
@@ -236,6 +251,7 @@ public:
                 break;
             }
             case Y: {
+                com += "Y" + std::to_string(sign) + " ";
                 rotateSign(LEFT, sign);
                 rotateSign(RIGHT, sign);
 
@@ -256,6 +272,7 @@ public:
                 break;
             }
             case Z: {
+                com += "Z" + std::to_string(sign) + " ";
                 rotateSign(TOP, sign);
                 rotateSign(BOTTOM, sign);
 
@@ -340,6 +357,7 @@ public:
 
     void rotateString(std::string str){
         std::string commands;
+        com += str + " ";
         for (int i = 0; i < str.size() - 1; i++){
             if (str[i] == ' ')
                 continue;
@@ -425,7 +443,79 @@ public:
         }
     }
 
-    void solved(){
+    void fileRead(const std::string& txt){
+        std::ifstream in(txt);
+        char it;
+        int i, j;
+        color.resize(6);
+
+        for (i = 0; i < 3; i++){
+            for (j = 0; j < 3 ; j++){
+                in >> it;
+                cube[0][i][j].set(POS::TOP, parse(it));
+                if (i == 1 && j == 1){
+                    color[POS::TOP] = cube[0][1][1][POS::TOP];
+                }
+            }
+        }
+        for (i = 0; i < 3; i++){
+            for (j = 0; j < 3 ; j++){
+                in >> it;
+                cube[i][j][0].set(POS::LEFT, parse(it));
+                if (i == 1 && j == 1){
+                    color[POS::LEFT] = cube[1][1][0][POS::LEFT];
+                }
+            }
+            for (j = 0; j < 3 ; j++){
+                in >> it;
+                cube[i][2][j].set(POS::FRONT, parse(it));
+                if (i == 1 && j == 1){
+                    color[POS::FRONT] = cube[1][2][1][POS::FRONT];
+                }
+            }
+            for (j = 0; j < 3 ; j++){
+                in >> it;
+                cube[i][2 - j][2].set(POS::RIGHT, parse(it));
+                if (i == 1 && j == 1){
+                    color[POS::RIGHT] = cube[1][1][2][POS::RIGHT];
+                }
+            }
+            for (j = 0; j < 3 ; j++){
+                in >> it;
+                cube[i][0][2 - j].set(POS::BACK, parse(it));
+                if (i == 1 && j == 1){
+                    color[POS::BACK] = cube[1][0][1][POS::BACK];
+                }
+            }
+        }
+        for (i = 0; i < 3; i++){
+            for (j = 0; j < 3 ; j++){
+                in >> it;
+                cube[2][2 - i][j].set(POS::BOTTOM, parse(it));
+                if (i == 1 && j == 1){
+                    color[POS::BOTTOM] = cube[2][1][1][POS::BOTTOM];
+                }
+            }
+        }
+
+        check();
+    }
+
+    void fileWrite(const std::string& txt) const{
+        std::ofstream out(txt);
+        out << *this;
+    }
+
+    friend std::ostream &operator<<(std::ostream &out, const Cube &other);
+
+    void solved() {
+        sol();
+        std::cout << com << "\n";
+        com.clear();
+    }
+
+private:
+    void sol(){
         std::vector<int> c;
         while (!checkCross())
             cross();
@@ -435,17 +525,88 @@ public:
         }
         rotateCube(X, 2);
 
-        while (!checkEdge())
+        while (!checkEdge()) {
             edge();
-
-        std::cout << *this << "\n";
+        }
 
         while (!checkCrossDown()){
+            F2U();
             FRUR3U3F3();
+            if (cube[0][0][1][TOP] == color[TOP] && cube[0][2][1][TOP] == color[TOP])
+                rotateCube(Z, 1);
         }
-        std::cout << *this << "\n";
 
+        while (!checkF2L()){
+            rotateString("U");
+        }
 
+        while (!checkCross()){
+            rotateCube(Z, 1);
+            if (cube[0][2][1][FRONT] == color[FRONT] && cube[0][0][1][BACK] == color[BACK]) {
+                RUR3URU2R3U();
+                rotateString("U3");
+                rotateCube(Z, 3);
+                RUR3URU2R3U();
+                break;
+            }
+            if (cube[0][2][1][FRONT] != color[FRONT] && cube[0][1][0][LEFT] != color[LEFT]){
+                RUR3URU2R3U();
+                break;
+            }
+        }
+
+        while (!checkAngleDown()) {
+            URU3L3UR3U3L();
+        }
+
+        for (int j = 0; j < 4; j++){
+
+            for (int i = 0; i < 4; i++){
+                c = findAngle(TOP, FRONT, RIGHT);
+                if (c[0] == 0 && c[1] == 2 && c[2] == 2){
+                    break;
+                }
+                rotateCube(Z, 1);
+            }
+
+            c = findAngle(TOP, FRONT, LEFT);
+            if (c[0] == 0 && c[1] == 0 && c[2] == 2){
+                URU3L3UR3U3L();
+                URU3L3UR3U3L();
+            }
+            else if (c[0] == 0 && c[1] == 0 && c[2] == 0){
+                URU3L3UR3U3L();
+            }
+        }
+
+        for (int i = 0; i < 4; i++){
+            int k = ((i == 0) ? RIGHT : ((i == 1) ? BACK : ((i == 2) ? LEFT : FRONT)));
+            while (cube[0][2][2][TOP] != color[TOP] || cube[0][2][2][RIGHT] != color[k])
+                R3D3RD();
+            rotateString("U");
+        }
+        rotateCube(X, 2);
+
+        if (!checkCube())
+            sol();
+    }
+
+    void F2U() {
+        if (cube[0][1][0][TOP] == color[TOP] && cube[0][2][1][TOP] == color[TOP] &&
+            cube[0][0][1][TOP] != color[TOP] && cube[0][1][2][TOP] != color[TOP]) {
+            rotateString("U");
+        }
+        if (cube[0][1][0][TOP] != color[TOP] && cube[0][2][1][TOP] == color[TOP] &&
+            cube[0][1][2][TOP] == color[TOP] && cube[0][0][1][TOP] != color[TOP]) {
+            rotateString("U2");
+        }
+        if (cube[0][1][0][TOP] != color[TOP] && cube[0][2][1][TOP] != color[TOP] &&
+            cube[0][1][2][TOP] == color[TOP] && cube[0][0][1][TOP] == color[TOP]) {
+            rotateString("U3");
+        }
+        if (cube[0][0][1][TOP] == color[TOP] && cube[0][2][1][TOP] == color[TOP]) {
+            rotateString("U");
+        }
     }
 
     void cross(){
@@ -486,6 +647,11 @@ public:
             c = findEdge(FRONT, RIGHT);
             if (!(c[0] == 1 && c[1] == 2 && c[2] == 2)){
                 solveEdge(c);
+            }
+            else if (cube[1][2][2][FRONT] == color[RIGHT] && cube[1][2][2][RIGHT] == color[FRONT]){
+                URU3R3U3F3UF();
+                rotateString("U2");
+                URU3R3U3F3UF();
             }
             rotateCube(Z, 1);
         }
@@ -661,6 +827,24 @@ public:
                 cube[0][2][0][FRONT] == color[FRONT] && cube[0][2][1][FRONT] == color[FRONT] && cube[0][2][2][FRONT] == color[FRONT];
     }
 
+    bool checkAngleDown() {
+        int a = 0;
+        auto c1 = findAngle(TOP, FRONT, RIGHT);
+        auto c2 = findAngle(TOP, FRONT, LEFT);
+        auto c3 = findAngle(TOP, BACK, LEFT);
+        auto c4 = findAngle(TOP, BACK, RIGHT);
+        if (c1[1] == 2 && c1[2] == 2)
+            a++;
+        if (c2[1] == 2 && c2[2] == 0)
+            a++;
+        if (c3[1] == 0 && c3[2] == 0)
+            a++;
+        if (c4[1] == 0 && c4[2] == 2)
+            a++;
+
+        return a != 0;
+    }
+
     bool checkEdge() {
         return  cube[2][0][0][BOTTOM] == color[BOTTOM] && cube[2][0][1][BOTTOM] == color[BOTTOM] && cube[2][0][2][BOTTOM] == color[BOTTOM] &&
                 cube[2][1][0][BOTTOM] == color[BOTTOM] && cube[2][1][1][BOTTOM] == color[BOTTOM] && cube[2][1][2][BOTTOM] == color[BOTTOM] &&
@@ -690,6 +874,19 @@ public:
             a++;
         }
         return a > 1;
+    }
+
+    bool checkCube() {
+        bool c = checkAngle();
+        for (int i = 0; i < 4; i++) {
+            rotateCube(Z, 1);
+            c = c && checkAngle();
+        }
+        rotateCube(X, 1);
+        c = c && checkAngle();
+        rotateCube(X, 2);
+        c = c && checkAngle();
+        return c;
     }
 
     std::vector<int> findCentre(unsigned color1){
@@ -819,72 +1016,8 @@ public:
 
         return {-1};
     }
-
-    void fileRead(const std::string& txt){
-        std::ifstream in(txt);
-        char it;
-        int i, j;
-        color.resize(6);
-
-        for (i = 0; i < 3; i++){
-            for (j = 0; j < 3 ; j++){
-                in >> it;
-                cube[0][i][j].set(POS::TOP, parse(it));
-                if (i == 1 && j == 1){
-                    color[POS::TOP] = cube[0][1][1][POS::TOP];
-                }
-            }
-        }
-        for (i = 0; i < 3; i++){
-            for (j = 0; j < 3 ; j++){
-                in >> it;
-                cube[i][j][0].set(POS::LEFT, parse(it));
-                if (i == 1 && j == 1){
-                    color[POS::LEFT] = cube[1][1][0][POS::LEFT];
-                }
-            }
-            for (j = 0; j < 3 ; j++){
-                in >> it;
-                cube[i][2][j].set(POS::FRONT, parse(it));
-                if (i == 1 && j == 1){
-                    color[POS::FRONT] = cube[1][2][1][POS::FRONT];
-                }
-            }
-            for (j = 0; j < 3 ; j++){
-                in >> it;
-                cube[i][2 - j][2].set(POS::RIGHT, parse(it));
-                if (i == 1 && j == 1){
-                    color[POS::RIGHT] = cube[1][1][2][POS::RIGHT];
-                }
-            }
-            for (j = 0; j < 3 ; j++){
-                in >> it;
-                cube[i][0][2 - j].set(POS::BACK, parse(it));
-                if (i == 1 && j == 1){
-                    color[POS::BACK] = cube[1][0][1][POS::BACK];
-                }
-            }
-        }
-        for (i = 0; i < 3; i++){
-            for (j = 0; j < 3 ; j++){
-                in >> it;
-                cube[2][2 - i][j].set(POS::BOTTOM, parse(it));
-                if (i == 1 && j == 1){
-                    color[POS::BOTTOM] = cube[2][1][1][POS::BOTTOM];
-                }
-            }
-        }
-
-        check();
-    }
-
-    void fileWrite(const std::string& txt) const{
-        std::ofstream out(txt);
-        out << *this;
-    }
-
-    friend std::ostream &operator<<(std::ostream &out, const Cube &other);
 };
+
 std::ostream &operator<<(std::ostream& out, const Cube &other) {
     int i, j;
 
@@ -935,9 +1068,11 @@ std::ostream &operator<<(std::ostream& out, const Cube &other) {
 
 int main() {
     Cube f;
-    f.fileRead("cube.in");
-    //f.randomCube();
+    //f.fileRead("cube.in");
+    f.randomCube();
     f.solved();
+
     std::cout << f;
+
     return 0;
 }
